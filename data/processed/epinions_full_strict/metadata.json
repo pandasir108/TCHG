@@ -1,0 +1,22 @@
+{
+  "behavior_dim": 8,
+  "context_dim": 8,
+  "dataset": "epinions_full_strict",
+  "edge_dim": 6,
+  "entity_dim": 8,
+  "history_update_policy": "train_positive_observed_only",
+  "negative_exclusion_scope": "full",
+  "negative_sampling_ratio": 1.0,
+  "new_nodes": 1152,
+  "note": "Features are built online from history before each timestamp.",
+  "num_edge_types": 1,
+  "num_events": 622316,
+  "num_nodes": 9163,
+  "protocol": "strict_train_history_full_epinions",
+  "task": "trust_link_prediction",
+  "test_positive_edges": 46644,
+  "test_time": 1177459200.0,
+  "train_positive_edges": 217837,
+  "val_positive_edges": 46677,
+  "val_time": 1113091200.0
+}

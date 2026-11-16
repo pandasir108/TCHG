@@ -1,0 +1,5 @@
+inherits: configs/epinions_70_15_15.yaml
+
+# Same data, seed, and hyperparameters; isolate corrected-run artifacts.
+paths:
+  output_dir: outputs/causal_fix_20261115/fixed_70_15_15_seed42

@@ -1,0 +1,21 @@
+inherits: configs/ciaodvd_70_15_15_static_refined.yaml
+
+dataset:
+  static_diffusion_features: true
+  static_diffusion_damping: [0.5, 0.85, 0.99]
+
+model:
+  static_pair_interactions: true
+  dropout: 0.4
+  user_identity_dropout: 0.7
+
+training:
+  exclude_static_query_edges: true
+  static_history_dropout: 0.2
+  epochs: 100
+  early_stop_patience: 10
+  weight_decay: 0.003
+  lr: 0.0005
+
+paths:
+  output_dir: outputs/ciaodvd_70_15_15_diffusion

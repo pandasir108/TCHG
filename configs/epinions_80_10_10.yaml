@@ -1,0 +1,84 @@
+seed: 42
+device: auto
+
+dataset:
+  name: epinions_full_cat_rolling_80_10_10
+  task: trust_link_prediction
+  raw_dir: data/raw
+  processed_dir: data/processed
+  processed_file: data/processed/epinions_full_cat_rolling_80_10_10/events.npz
+  p_missing: 0.20  # Event evidence missingness; does not define user regimes.
+  val_ratio: 0.70
+  test_ratio: 0.15
+  val_time_ratio: 0.80
+  test_time_ratio: 0.90
+  negative_sampling_ratio: 1.0
+  negative_exclusion_scope: full
+  feature_history_policy: cat_rolling
+  respect_observed_history: true
+  cat_table_split_label: 80%-10%-10%
+  max_events:
+
+model:
+  name: tchgt
+  node_dim: 16
+  hidden_dim: 64
+  trust_dim: 24
+  memory_dim: 24
+  # Native gaps are seconds; all memory rates and temporal gates use days.
+  memory_time_scale_seconds: 86400.0
+  num_layers: 2
+  num_operator_candidates: 4
+  dropout: 0.15
+  theta_e: 0.50
+  beta: 0.10
+  memory_lambdas: [0.015, 0.045, 0.090]
+  uncertainty_etas: [0.025, 0.060, 0.120]
+  use_entity_gate: true
+  use_behavior_modulation: true
+  use_context_operator: true
+  use_masked_memory: true
+  component_wise_memory: true
+  reconnect_correction: true
+  use_uncertainty_calibration: true
+  memory_key: src_node
+  fast_batch_memory: true
+
+training:
+  epochs: 50
+  batch_mode: event_stream
+  stream_batch_size: 4096
+  lr: 0.001
+  weight_decay: 0.0001
+  grad_clip: 2.0
+  early_stop_patience: 50
+  # One shared checkpoint; both user regimes are reported separately.
+  early_stop_monitor: val_overall_mrr
+  early_stop_mode: max
+  early_stop_min_delta: 0.0
+  lambda_brier: 0.20
+  lambda_unc: 0.20
+  lambda_uerr: 0.10
+  lambda_rank: 0.0
+  rank_margin: 0.0
+  rank_max_pairs: 20000
+  lambda_div: 0.001
+  class_balance: true
+  class_weight_power: 1.0
+  focal_gamma: 0.0
+  threshold: 0.50
+  auto_tune_threshold: true
+  threshold_metric: f1
+  threshold_min: 0.01
+  threshold_max: 0.99
+  threshold_steps: 199
+  posthoc_calibration: true
+  calibration_lr: 0.5
+  calibration_max_iter: 80
+
+paths:
+  output_dir: outputs/epinions_80_10_10
+
+robustness:
+  scenarios: [missing, trust_oriented, gnn_oriented]
+  rates: [0.1, 0.2, 0.3, 0.4, 0.5]

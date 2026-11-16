@@ -1,0 +1,12 @@
+{
+  "behavior_dim": 8,
+  "context_dim": 8,
+  "dataset": "epinions",
+  "edge_dim": 6,
+  "entity_dim": 8,
+  "note": "Features are built online from history before each timestamp.",
+  "num_edge_types": 1,
+  "num_events": 10000,
+  "num_nodes": 9163,
+  "task": "trust_link_prediction"
+}

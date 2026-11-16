@@ -1,0 +1,29 @@
+inherits: configs/epinions_70_15_15_causal_refined.yaml
+device: cuda
+
+# Experimental variant: recent pre-query rating activity and train-only IDs.
+dataset:
+  rating_temporal_activity: true
+  rating_profile_dim: 0
+  rating_feature_cache: outputs/cache/epinions_70_15_15_ratings_recent_v1.npz
+
+model:
+  num_layers: 2
+  use_masked_memory: true
+  stationary_time_features: true
+  use_user_identity: true
+  user_identity_dim: 32
+  user_identity_dropout: 0.3
+  use_rating_profiles: false
+
+training:
+  epochs: 16
+  early_stop_monitor: val_robust_target_ratio
+  early_stop_patience: 5
+  observed_user_mrr_target: 0.7
+  unobserved_user_mrr_target: 0.45
+  validation_confirmation_fraction: 0.5
+  user_identity_lr_multiplier: 5.0
+
+paths:
+  output_dir: outputs/epinions_70_15_15_causal_recent

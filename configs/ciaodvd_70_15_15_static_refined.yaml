@@ -1,0 +1,8 @@
+inherits: configs/ciao_70_15_15_static_refined.yaml
+
+dataset:
+  name: ciaodvd_full_cat_rolling
+  processed_file: data/processed/ciaodvd_full_cat_rolling/events.npz
+
+paths:
+  output_dir: outputs/ciaodvd_70_15_15_static_refined

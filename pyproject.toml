@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tchg"
+version = "0.1.0"
+description = "Tri-Trust Conditioned Heterogeneous Graph Learning"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.24,<3",
+  "pandas>=2.0,<3",
+  "PyYAML>=6.0,<7",
+  "scikit-learn>=1.3,<2",
+  "torch>=2.1,<3",
+  "tqdm>=4.66,<5",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7.4,<9"]
+
+[tool.setuptools.packages.find]
+include = ["tchg*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

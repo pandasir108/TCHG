@@ -1,0 +1,8 @@
+inherits: configs/epinions_70_15_15_causal_recent.yaml
+
+# Interpret all memory rates and gate inputs in days, with native data in seconds.
+model:
+  memory_time_scale_seconds: 86400.0
+
+paths:
+  output_dir: outputs/epinions_70_15_15_memory_days

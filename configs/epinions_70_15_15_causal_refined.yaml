@@ -1,0 +1,20 @@
+inherits: configs/epinions_70_15_15_causal_improved.yaml
+device: cuda
+
+# Further experimental variant. Native ratings supply only pre-query evidence.
+dataset:
+  causal_rating_features: true
+  rating_history_policy: pre_event
+  rating_feature_cache: outputs/cache/epinions_70_15_15_ratings_pre_event_v1.npz
+
+model:
+  evidence_residual: true
+  dropout: 0.2
+
+training:
+  epochs: 10
+  early_stop_monitor: val_macro_user_mrr
+  ema_decay: 0.99
+
+paths:
+  output_dir: outputs/epinions_70_15_15_causal_refined

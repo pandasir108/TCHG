@@ -1,0 +1,21 @@
+inherits: configs/ciao_70_15_15_memory_days.yaml
+
+# Training trust only; each current training relation is excluded from its
+# structural features. Native trust timestamps remain zero.
+dataset:
+  static_structural_features: true
+
+model:
+  static_bidirectional: true
+  dropout: 0.3
+  user_identity_dropout: 0.5
+
+training:
+  epochs: 80
+  early_stop_patience: 8
+  lr: 0.0007
+  weight_decay: 0.001
+  user_identity_lr_multiplier: 2.0
+
+paths:
+  output_dir: outputs/ciao_70_15_15_static_refined

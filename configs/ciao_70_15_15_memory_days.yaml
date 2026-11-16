@@ -1,0 +1,26 @@
+inherits: configs/epinions_70_15_15_memory_days.yaml
+
+dataset:
+  name: ciao_full_cat_rolling
+  processed_file: data/processed/ciao_full_cat_rolling/events.npz
+  p_missing: 0.0
+  evaluation_group: all_users
+  static_training_features: true
+  causal_structure_features: false
+  causal_rating_features: false
+  negative_candidate_node_scope: trust_active
+  history_policy: fixed_training_graph
+  trust_timestamp_policy: zero
+  split_method: random_trust_links
+
+model:
+  graph_history_mode: static_train
+
+training:
+  epochs: 50
+  early_stop_monitor: val_overall_mrr
+  observed_user_mrr_target: null
+  unobserved_user_mrr_target: null
+
+paths:
+  output_dir: outputs/ciao_70_15_15_memory_days
