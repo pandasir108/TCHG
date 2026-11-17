@@ -1,7 +1,6 @@
 inherits: configs/epinions_70_15_15_causal_improved.yaml
 device: cuda
 
-# Further experimental variant. Native ratings supply only pre-query evidence.
 dataset:
   causal_rating_features: true
   rating_history_policy: pre_event

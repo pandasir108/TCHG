@@ -163,8 +163,6 @@ def test_evaluation_replays_training_and_validation_but_freezes_test_queries():
         'training': {'batch_mode':'event_stream', 'stream_batch_size':2}}
     trainer = Trainer(cfg, dataset, device='cpu')
     prediction, _ = trainer.collect_predictions('test', apply_calibration=False)
-    # Two real events in train and two in validation. No test candidate is
-    # written to history, and sampled negatives are never historical edges.
     count = trainer.model.operator_stack._history[0][1].sum()
     assert count == 4
     assert trainer._history_batch(trainer.batches['test'], False)['history_write_mask'].sum() == 0

@@ -123,7 +123,6 @@ class Trainer:
 
     @contextmanager
     def _validation_weights(self):
-        """Score/save EMA weights while retaining raw weights for optimization."""
         if getattr(self, '_ema_state', None) is None:
             yield
             return
@@ -152,7 +151,6 @@ class Trainer:
         return out
 
     def _chunks(self, batch):
-        """Never split a simultaneous timestamp group between model calls."""
         size = int(self.cfg['training'].get('stream_batch_size', 4096))
         if size <= 0:
             raise ValueError('stream_batch_size must be positive')
@@ -168,7 +166,7 @@ class Trainer:
     def _history_batch(self, batch, write):
         out = dict(batch)
         if getattr(self, 'static_graph', False):
-            write = False  # The training graph is primed separately.
+            write = False
         mask = torch.ones_like(batch['observed_mask']) if write else torch.zeros_like(batch['observed_mask'])
         if 'sample_type' in batch:
             mask = mask * (batch['sample_type'] == 0)
@@ -203,9 +201,6 @@ class Trainer:
             return
         if split == 'train':
             return
-        # Match the existing prepared-data protocol: validation sees training
-        # history; test sees training plus observed validation events. Query
-        # outcomes within the evaluated split never enter the history graph.
         history_splits = ['train'] + (['val'] if split == 'test' else [])
         was_training = self.model.training
         self.model.eval()
@@ -329,8 +324,6 @@ class Trainer:
         with torch.set_grad_enabled(train):
             for chunk in self._chunks(batch):
                 if getattr(self, 'static_graph', False) and train:
-                    # Rebuild after each optimizer step; never reuse an old
-                    # autograd graph or turn minibatch order into history.
                     self._reset_and_prime(split, query=chunk)
                 pred = self.model(chunk)
                 if not train:

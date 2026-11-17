@@ -1,4 +1,3 @@
-"""Training-graph random-walk evidence with exact query-edge deletion."""
 from __future__ import annotations
 
 from collections import Counter
@@ -8,15 +7,6 @@ import torch
 
 
 def static_diffusion_features(arrays, damping=(.5, .85), device='cpu'):
-    """Sum directed walks of all lengths, using training trust only.
-
-    For a training positive, delete its own binary relation and renormalize
-    its transition row before reading the walk scores. The rank-one inverse
-    update is equivalent to rebuilding that query's edge-deleted graph.
-    Held-out labels, sample types and relations never build the transition.
-    Incoming and outgoing walks remain distinct; inactive nodes have zero
-    evidence. Damping is fixed in the configuration, not fitted on outcomes.
-    """
     if np.any(arrays['timestamp'] != 0.):
         raise ValueError('Static diffusion requires zero native trust timestamps')
     damping = tuple(float(value) for value in damping)
@@ -46,9 +36,6 @@ def static_diffusion_features(arrays, damping=(.5, .85), device='cpu'):
                        for i in indices], dtype=bool)
     adjacency = np.zeros((len(active), len(active)), dtype=np.float64)
     adjacency[mapping[edge_src], mapping[edge_dst]] = 1.
-    # Long walks and deletion of nearly absorbing rows can subtract large,
-    # close inverse entries. Compute evidence in double precision on either
-    # device, then return float32 neural-network inputs.
     dtype = torch.float64
     for orientation in range(2):
         graph = adjacency if orientation == 0 else adjacency.T
@@ -62,11 +49,9 @@ def static_diffusion_features(arrays, damping=(.5, .85), device='cpu'):
             inverse = torch.linalg.inv(identity - alpha * matrix).cpu().numpy()
             def score(i, j):
                 value = inverse[i, j].astype(np.float64)
-                # For k > 1: P'_r - P_r = (P_r - e_c)/(k - 1).
                 delta = inverse[r, j] - (r == j) - alpha * inverse[c, j]
                 denominator = k - inverse[r, r] + alpha * inverse[c, r]
                 many = value + inverse[i, r] * delta / np.where(k > 1., denominator, 1.)
-                # For k == 1 the deleted row is zero.
                 one = value - alpha * inverse[i, r] * inverse[c, j] / (1. + alpha * inverse[c, r])
                 return np.where(delete, np.where(k > 1., many, one), value)
             sd, ds, ss, dd = score(s, d), score(d, s), score(s, s), score(d, d)

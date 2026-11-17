@@ -10,7 +10,6 @@ def examples():
     query={'src':np.zeros(4,dtype=np.int64),'dst':np.ones(4,dtype=np.int64),
            'timestamp':np.array([2.,3.,4.,6.]),'split':np.array([0,0,1,2]),'num_nodes':np.array([2]),
            'label':np.ones(4),'observed_mask':np.ones(4)}
-    # user, item, category, score, helpfulness, time
     ratings=np.array([[0,10,1,5,1,1],[1,10,1,4,1,2],
                       [1,20,2,2,1,3],[0,20,2,1,1,5]],dtype=float)
     return query,ratings
@@ -41,7 +40,6 @@ def test_recent_profiles_expire_and_do_not_depend_on_future_ratings():
     query['timestamp']*=86400.;ratings[:,5]*=86400.
     first=causal_rating_features(query,ratings,'pre_event',profile_dim=16,profile_window_days=2.,temporal_activity=True)
     assert first['rating_profile_src'].shape==(4,16)
-    # The source's event at day1 has expired by query day4; day5 arrives later.
     np.testing.assert_array_equal(first['rating_profile_src'][2],0.)
     assert first['rating_profile_src'][3].any()
     more=np.vstack([ratings,[0,30,3,5,1,100*86400.]])

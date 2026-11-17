@@ -1,4 +1,3 @@
-"""Trust evidence for random link splits with no trust timestamps."""
 from __future__ import annotations
 
 from collections import Counter
@@ -7,11 +6,6 @@ import numpy as np
 
 
 def static_training_features(arrays):
-    """Use training trust only; remove the current training edge from features.
-
-    The original candidates, split, node table, and appended static rating
-    context are retained. Held-out labels and relations never build evidence.
-    """
     if np.any(arrays['timestamp'] != 0.):
         raise ValueError('Static trust features require zero native trust timestamps')
     src, dst = arrays['src'], arrays['dst']
@@ -47,8 +41,6 @@ def static_training_features(arrays):
     context[:, 0] = arrays['edge_type'] / 4.
     context[:, 5] = norm(activity_src + activity_dst, 20.)
     context[:, 6] = recent_negative
-    # Existing columns beyond the eight trust columns are static rating
-    # activity/category summaries in the supplied Ciao/CiaoDVD files.
     context[:, 8:] = arrays['context_features'][:, 8:]
     edge = np.column_stack([arrays['edge_type'] / 4., np.zeros(n), np.zeros(n), norm(count),
                             arrays['observed_mask'], recent_negative]).astype(np.float32)
@@ -58,11 +50,6 @@ def static_training_features(arrays):
 
 
 def static_structural_features(arrays):
-    """Directed overlap from training trust, excluding each current train edge.
-
-    Source/target roles remain distinct. Validation/test outcomes never decide
-    graph membership; their endpoints only specify the pair to be scored.
-    """
     src, dst = arrays['src'], arrays['dst']
     n, nodes = len(src), int(arrays['num_nodes'][0])
     train = arrays['split'] == 0

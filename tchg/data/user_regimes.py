@@ -1,10 +1,3 @@
-"""User-history evaluation regimes, independent of event missingness.
-
-The reference users are endpoints of genuine positive TRAINING relations.
-Sampled negatives, validation/test relations, and ``observed_mask`` do not
-change this reference set. A candidate is Observed-user only when BOTH its
-endpoints belong to this set; otherwise it is Unobserved-user.
-"""
 from __future__ import annotations
 
 import numpy as np
@@ -20,7 +13,6 @@ USER_REGIME_DEFINITIONS = {
 
 
 def validate_user_regime_masks(observed, unobserved, legacy_new=None):
-    """Require disjoint, exhaustive binary masks; validate the legacy alias."""
     observed, unobserved = np.asarray(observed), np.asarray(unobserved)
     if observed.ndim != 1 or observed.shape != unobserved.shape:
         raise ValueError("User-regime masks must be one-dimensional and have identical shapes")
@@ -35,7 +27,6 @@ def validate_user_regime_masks(observed, unobserved, legacy_new=None):
 
 
 def training_reference_users(arrays, train_indices=None):
-    """Return users with genuine positive relations in the training split."""
     src, dst = np.asarray(arrays['src']), np.asarray(arrays['dst'])
     if train_indices is None:
         if 'split' not in arrays:
@@ -49,25 +40,17 @@ def training_reference_users(arrays, train_indices=None):
 
 
 def derive_user_regime_masks(arrays, train_indices=None):
-    """Derive pair-level evaluation membership from training relations only."""
     src, dst = np.asarray(arrays['src']), np.asarray(arrays['dst'])
     reference_users = training_reference_users(arrays, train_indices)
     observed = np.isin(src, reference_users) & np.isin(dst, reference_users)
     return {
         'observed_user_mask': observed.astype(np.int64),
         'unobserved_user_mask': (~observed).astype(np.int64),
-        # Compatibility with existing datasets, checkpoints, and cold-start gates.
         'is_new_node': (~observed).astype(np.int64),
     }
 
 
 def with_user_regime_masks(arrays, train_indices=None):
-    """Add explicit masks and reject inconsistent stored grouping metadata.
-
-    Returns a new mapping. Existing arrays and on-disk data are not modified.
-    Legacy files containing only ``is_new_node`` remain supported, provided
-    their grouping agrees with the training-only definition.
-    """
     expected = derive_user_regime_masks(arrays, train_indices)
     has_observed = 'observed_user_mask' in arrays
     has_unobserved = 'unobserved_user_mask' in arrays

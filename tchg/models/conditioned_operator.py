@@ -160,7 +160,6 @@ class ConditionedHeterogeneousOperatorStack(nn.Module):
             self._static_h = self._static_h.detach()
 
     def prime_static_history(self, h, batch, enc):
-        """Propagate over the fixed training graph without inventing timestamps."""
         if not self.static_mode:
             raise RuntimeError('Static priming requires static_mode')
         for layer in self.layers:
@@ -171,11 +170,6 @@ class ConditionedHeterogeneousOperatorStack(nn.Module):
 
     @staticmethod
     def _historical_means(message, batch, history):
-        """Mean event-time messages from eligible edges strictly before t.
-
-        Each layer retains historical message sums, rather than building a
-        static graph out of the current batch of prediction queries.
-        """
         src, dst, timestamp = batch['src'], batch['dst'], batch['timestamp']
         sums, counts = history
         weight = batch['history_write_mask'] * (batch['observed_mask'] > .5).to(message.dtype)
@@ -188,8 +182,6 @@ class ConditionedHeterogeneousOperatorStack(nn.Module):
         prefix, prefix_count = values.cumsum(0), weights.cumsum(0)
         first = torch.ones_like(nodes, dtype=torch.bool)
         first[1:] = nodes[1:] != nodes[:-1]
-        # Double precision avoids cancellation across node segments making an
-        # earlier query numerically depend on another node's future messages.
         offsets = sums.new_zeros(sums.shape, dtype=torch.float64).index_copy(0, nodes[first], (prefix - values)[first])
         count_offsets = torch.zeros_like(counts).index_copy(0, nodes[first], (prefix_count - weights)[first])
         prefix, prefix_count = (prefix - offsets[nodes]).to(message.dtype), prefix_count - count_offsets[nodes]
@@ -222,13 +214,11 @@ class ConditionedHeterogeneousOperatorStack(nn.Module):
         h_src, h_dst = h[src], h[dst]
         for i, layer in enumerate(self.layers):
             if layer.operators.shape[0] == 1:
-                # Avoid copying the same relation matrix once per event.
                 candidate = torch.einsum('ed,kdo->eko', h_src, layer.operators[0])
             else:
                 candidate = torch.einsum('ed,ekdo->eko', h_src, layer.operators[batch['edge_type']])
             mixture = layer.context_mixture(enc['z_C'], enc['tau_C'], batch['edge_type'])
             message = (candidate * mixture.unsqueeze(-1)).sum(1)
-            # This is the pair's USER regime, independent of observed_mask.
             unobserved_user = batch.get('unobserved_user_mask', batch.get('is_new_node'))
             message = message * layer.entity_gate(enc['tau_E'], unobserved_user)
             message = message * layer.behavior_reliability(enc['tau_B'], enc['z_B'], batch['edge_features'])

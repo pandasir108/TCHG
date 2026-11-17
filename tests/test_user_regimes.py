@@ -16,9 +16,6 @@ from tchg.training.trainer import Trainer
 
 
 def example_arrays():
-    # Training: real 0->1 and sampled negative 0->2.
-    # Validation introduces real users 2 and 3; neither becomes training-seen.
-    # Test contains one positive and one negative in each user regime.
     rng = np.random.default_rng(23)
     return {
         'src': np.array([0, 0, 2, 1, 0, 2, 1, 1]),
@@ -105,7 +102,6 @@ def test_each_user_regime_has_its_own_ranking_pool_and_event_masks_are_independe
     before = compute_metrics(pred, batch)
     pred['trust_pred'][[1, 3]] = torch.tensor([.01, .02])
     after = compute_metrics(pred, batch)
-    # Changing only Observed-user negatives must not affect Unobserved-user ranks.
     for key in ('mrr', 'ap', 'auc'):
         assert before['unobserved_user_' + key] == after['unobserved_user_' + key]
     assert before['observed_user_mrr'] != after['observed_user_mrr']
@@ -198,8 +194,6 @@ def test_main_pipeline_exports_named_tasks_and_protocol(tmp_path, monkeypatch):
     assert result['test_by_user_regime']['unobserved_user']['mrr'] == result['test']['new_mrr']
     assert trainer.history[-1]['val_overall_mrr'] == trainer.history[-1]['val_mrr']
     assert 'val_observed_user_mrr' in pd.read_csv(output / 'history.csv')
-    # A zero-learning-rate continuation must load the chosen checkpoint,
-    # including when the random initialization seed changes.
     expected={k:v.clone() for k,v in trainer.model.state_dict().items()}
     continuation=deepcopy(cfg);continuation['seed']=43
     continuation['training'].update({'epochs':1,'lr':0.,'ema_decay':.99,'warm_start_checkpoint':str(output/'best.pt')})
@@ -207,8 +201,6 @@ def test_main_pipeline_exports_named_tasks_and_protocol(tmp_path, monkeypatch):
     for key,value in expected.items():
         torch.testing.assert_close(resumed.model.state_dict()[key],value)
     assert resumed_result['evaluation_protocol']['selection']['warm_start_checkpoint']==str(output/'best.pt')
-    # Validation-only searches must never read test predictions or create a
-    # test report, even when calibration and threshold selection are enabled.
     original_evaluate = Trainer.evaluate
     evaluated_splits = []
     def guarded_evaluate(self, split, **kwargs):

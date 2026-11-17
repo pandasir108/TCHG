@@ -89,7 +89,6 @@ def _binary_group_metrics(
         f"{prefix}_ap": _safe(average_precision_score, y, prob, default=0.0),
         f"{prefix}_f1": _safe(f1_score, y, yhat, default=0.0, zero_division=0),
         f"{prefix}_accuracy": _safe(accuracy_score, y, yhat, default=0.0),
-        # Sample negatives from THIS user regime, never the combined pool.
         f"{prefix}_mrr": sampled_mean_reciprocal_rank(y, prob),
         f"{prefix}_global_mrr": mean_reciprocal_rank(y, prob),
     }
@@ -134,7 +133,6 @@ def compute_metrics(pred: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor
         "short_gap_auc": _group_auc(y, prob, short_mask),
         "reappearing_edge_auc": _group_auc(y, prob, reappearing),
     }
-    # Explicit overall names keep combined results distinct from paper rows.
     metrics.update({f'overall_{key}': metrics[key] for key in USER_REGIME_REPORT_FIELDS})
     has_observed = 'observed_user_mask' in batch
     has_unobserved = 'unobserved_user_mask' in batch
@@ -153,19 +151,12 @@ def compute_metrics(pred: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor
     for regime, mask, alias in [('observed_user', observed_user, 'old'), ('unobserved_user', unobserved_user, 'new')]:
         group = _binary_group_metrics(y, prob, yhat, mask, regime)
         metrics.update(group)
-        # Preserve existing consumers without using ambiguous names in reports.
         metrics.update({f'{alias}_{key}': group[f'{regime}_{key}'] for key in USER_REGIME_REPORT_FIELDS})
-    # Auxiliary validation-selection score; paper tasks retain separate pools.
     metrics['macro_user_mrr'] = .5 * (metrics['observed_user_mrr'] + metrics['unobserved_user_mrr'])
     return metrics
 
 
 def user_regime_results(metrics):
-    """Extract named report rows, including from legacy saved metric files.
-
-    Missing class counts in older files are omitted, never inferred. Scores
-    are copied verbatim; this function does not re-evaluate any predictions.
-    """
     grouped = {}
     for regime, legacy_prefix in [('observed_user', 'old_'), ('unobserved_user', 'new_'), ('overall', '')]:
         row = {}
@@ -185,11 +176,6 @@ def user_regime_results(metrics):
 
 
 def validation_target_metrics(pred, batch, observed_target, unobserved_target, confirmation_fraction=.5):
-    """Additional validation diagnostics; paper/test metrics are unchanged.
-
-    Both periods have previously been used for model selection in this study.
-    Splitting them provides a temporal stability check, not a fresh holdout.
-    """
     if not (0. < observed_target <= 1. and 0. < unobserved_target <= 1.):
         raise ValueError('MRR targets must be in (0, 1]')
     if not 0. < confirmation_fraction < 1.:

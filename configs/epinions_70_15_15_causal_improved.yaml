@@ -1,7 +1,5 @@
 inherits: configs/epinions_70_15_15_causal_fix.yaml
 
-# Experimental evidence and conditioning changes on top of the causal fix.
-# These additions change the model inputs; they are not baseline reproduction.
 dataset:
   causal_structure_features: true
   structural_feature_cache: outputs/cache/epinions_70_15_15_causal_structure_v1.npz

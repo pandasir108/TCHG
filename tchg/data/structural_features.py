@@ -1,4 +1,3 @@
-"""Pair evidence constructed only from admissible historical trust edges."""
 from __future__ import annotations
 
 import hashlib
@@ -8,14 +7,6 @@ import numpy as np
 
 
 def causal_structural_features(arrays, cache_path=None):
-    """Return reciprocal/recency/two-hop/common-neighbor evidence per query.
-
-    Only observed positive edges supply structure. Train reads strictly earlier
-    timestamp groups. Validation reads a frozen training graph. Test reads
-    training plus observed validation events, with
-    no updates from test queries or sampled negatives. Test labels are never
-    consulted. No statistics are fitted on validation or test features.
-    """
     src, dst, times, split = (arrays[k] for k in ('src', 'dst', 'timestamp', 'split'))
     n = len(src)
     visible = arrays.get('history_visible_mask', np.ones(n))

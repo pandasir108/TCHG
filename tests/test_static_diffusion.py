@@ -7,7 +7,6 @@ from tchg.data.static_diffusion import static_diffusion_features
 
 
 def graph_example():
-    # Include an isolated node, a self-loop and a duplicated training edge.
     pairs = [(0, 1), (1, 2), (2, 0), (0, 2), (2, 3), (3, 3),
              (0, 1), (4, 0), (3, 1), (2, 1), (1, 3)]
     n = len(pairs)
@@ -36,7 +35,6 @@ def test_diffusion_agrees_with_direct_inverse_of_each_edge_deleted_graph():
             for column, alpha in enumerate(damping):
                 inverse = np.linalg.inv(np.eye(5) - alpha * transition)
                 offset = orientation * len(damping) + column
-                # Nodes absent from training relations carry no evidence.
                 if s == 4 or d == 4:
                     np.testing.assert_array_equal(result['behavior_features'][row], 0.)
                     continue

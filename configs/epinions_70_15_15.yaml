@@ -7,7 +7,7 @@ dataset:
   raw_dir: data/raw
   processed_dir: data/processed
   processed_file: data/processed/epinions_full_cat_rolling/events.npz
-  p_missing: 0.20  # Event evidence missingness; does not define user regimes.
+  p_missing: 0.20
   val_ratio: 0.70
   test_ratio: 0.15
   val_time_ratio: 0.70
@@ -25,7 +25,6 @@ model:
   hidden_dim: 64
   trust_dim: 24
   memory_dim: 24
-  # Native gaps are seconds; all memory rates and temporal gates use days.
   memory_time_scale_seconds: 86400.0
   num_layers: 2
   num_operator_candidates: 4
@@ -52,7 +51,6 @@ training:
   weight_decay: 0.0001
   grad_clip: 2.0
   early_stop_patience: 50
-  # One shared checkpoint; both user regimes are reported separately.
   early_stop_monitor: val_overall_mrr
   early_stop_mode: max
   early_stop_min_delta: 0.0

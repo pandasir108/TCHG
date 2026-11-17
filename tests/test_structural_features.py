@@ -16,11 +16,11 @@ def events():
 def test_structure_uses_strict_past_and_replays_observed_validation():
     a=events();x=causal_structural_features(a)
     np.testing.assert_array_equal(x[:2],0.)
-    assert x[2,2]>0  # historical 0 -> 1 -> 2
-    assert x[3,0]==1  # historical 0 -> 1, querying 1 -> 0
-    assert x[4,0]==0  # negative candidate 0 -> 2 was not written
-    assert x[6,0]==0  # earlier test query 2 -> 3 was not written
-    assert x[7,0]==1  # observed validation 1 -> 0 is now historical
+    assert x[2,2]>0
+    assert x[3,0]==1
+    assert x[4,0]==0
+    assert x[6,0]==0
+    assert x[7,0]==1
 
 
 def test_structure_does_not_consult_test_labels_or_observation_masks():
@@ -46,7 +46,7 @@ def test_structural_cache_is_invalidated_when_past_visibility_changes(tmp_path):
 
 def test_simultaneous_edges_and_future_evidence_do_not_change_earlier_queries():
     a=events()
-    a['dst'][1]=0  # 0 -> 1 and 1 -> 0 occur simultaneously.
+    a['dst'][1]=0
     x=causal_structural_features(a)
     assert x[0,0]==x[1,0]==0
     a['src'][3:]=3

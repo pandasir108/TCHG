@@ -1,4 +1,3 @@
-"""Pair evidence from timestamped rating history, without trust query labels."""
 from __future__ import annotations
 
 import hashlib
@@ -15,14 +14,6 @@ from tchg.utils.io import resolve_path
 
 def causal_rating_features(arrays, ratings, history_policy='split_frozen', profile_dim=0,
                            profile_window_days=365., temporal_activity=False, profile_seed=42):
-    """Build entity/activity, behavioral agreement, and category evidence.
-
-    Rating columns are mapped user, item, category, rating, helpfulness, time.
-    Training reads strictly earlier ratings. With split_frozen, validation
-    freezes at the training boundary and test at the validation boundary.
-    pre_event instead permits all ratings strictly earlier than each query.
-    Neither policy consults trust labels, candidate kinds, or event masks.
-    """
     if history_policy not in {'split_frozen', 'pre_event'}:
         raise ValueError('Unknown rating history policy')
     if profile_dim and (profile_dim < 4 or profile_dim % 2):

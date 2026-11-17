@@ -1,7 +1,5 @@
 inherits: configs/ciao_70_15_15_memory_days.yaml
 
-# Training trust only; each current training relation is excluded from its
-# structural features. Native trust timestamps remain zero.
 dataset:
   static_structural_features: true
 

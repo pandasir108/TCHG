@@ -164,7 +164,6 @@ class TCHGModel(nn.Module):
             evidence_dim = sum(dims[k] for k in ('entity_dim', 'behavior_dim', 'context_dim', 'edge_dim'))
             self.evidence_residual = nn.Sequential(
                 nn.Linear(evidence_dim, hidden_dim), nn.ReLU(), nn.Dropout(dropout), nn.Linear(hidden_dim, 1))
-            # The added path initially preserves the original model's logits.
             nn.init.zeros_(self.evidence_residual[-1].weight)
             nn.init.zeros_(self.evidence_residual[-1].bias)
         self.meta_branch = (
@@ -229,8 +228,6 @@ class TCHGModel(nn.Module):
     def _identity_state(self):
         available = self.identity_reference_mask[:, None]
         if self.training and self.user_identity_dropout:
-            # Hide known identities during training to teach anonymous-user
-            # prediction. Fixed paper user-regime metadata is not changed.
             available = available & (torch.rand(available.shape, device=available.device) >= self.user_identity_dropout)
         return (self.user_source_embedding.weight * available, self.user_target_embedding.weight * available,
                 self.user_source_bias.weight * available, self.user_target_bias.weight * available)
@@ -241,12 +238,6 @@ class TCHGModel(nn.Module):
         self.operator_stack.reset_state()
 
     def prime_static_history(self, history_batch):
-        """Encode observed training relations for an untimestamped trust task.
-
-        Query labels and validation/test relations never enter this method.
-        During training the priming graph remains differentiable, including
-        the memory writers. Native zero gaps are retained.
-        """
         if not self.operator_stack.static_mode:
             raise RuntimeError('Static priming is disabled for this model')
         batch = self._prepare_evidence(history_batch)
@@ -295,8 +286,6 @@ class TCHGModel(nn.Module):
     def _prepare_evidence(self, batch, apply_statistics=True):
         batch = dict(batch)
         if not self.use_absolute_time_features:
-            # Retain real timestamps and relative gaps for causal state updates;
-            # omit the arbitrary global-horizon clock from neural predictors.
             batch['context_features'] = batch['context_features'].clone()
             batch['context_features'][:, [1, 2, 3, 7]] = 0.
             batch['edge_features'] = batch['edge_features'].clone()
@@ -320,7 +309,6 @@ class TCHGModel(nn.Module):
 
     @torch.no_grad()
     def fit_input_statistics(self, training_batch):
-        """Fit once on training evidence; inference only reads these buffers."""
         if self.standardize_evidence:
             transformed = self._prepare_evidence(training_batch, apply_statistics=False)
             for key in self.evidence_keys:

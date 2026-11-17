@@ -1,4 +1,3 @@
-"""Explicit paper-task reports and the protocol used to produce them."""
 from __future__ import annotations
 
 import hashlib

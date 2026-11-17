@@ -30,13 +30,6 @@ class _MemoryCell(nn.Module):
 
 
 class ComponentDecoupledMaskedTrustMemory(nn.Module):
-    """Causal memory reads with differentiable writes between timestamps.
-
-    Events with the same timestamp read the same snapshot; their eligible
-    writes are averaged by memory key afterwards. Vectorization is within
-    timestamp groups, including when fast_batch_memory is enabled. Only the
-    trainer detaches the bank at optimization boundaries.
-    """
 
     def __init__(self, trust_dim, memory_dim, component_wise_memory=True,
                  reconnect_correction=True, memory_key='edge', fast_batch_memory=False,
@@ -47,8 +40,6 @@ class ComponentDecoupledMaskedTrustMemory(nn.Module):
         self.component_wise_memory, self.reconnect_correction = component_wise_memory, reconnect_correction
         self.memory_key, self.fast_batch_memory = memory_key, fast_batch_memory
         self.residual_scale = float(residual_scale)
-        # Convert native second-valued gaps once for decay, uncertainty, and
-        # temporal gates. Rates are expressed per resulting time unit.
         self.time_scale_seconds = float(time_scale_seconds)
         if not math.isfinite(self.time_scale_seconds) or self.time_scale_seconds <= 0.:
             raise ValueError('memory time_scale_seconds must be finite and positive')
@@ -95,7 +86,6 @@ class ComponentDecoupledMaskedTrustMemory(nn.Module):
         return self._tensor_state
 
     def _group_plan(self, keys, timestamp, update_mask, n):
-        """Plan fixed-size gathers once, avoiding CUDA nonzero synchronization."""
         mask = np.ones(n, dtype=bool) if update_mask is None else update_mask.detach().cpu().numpy() > .5
         has_writes = bool(mask.any())
         if timestamp is None:
@@ -169,8 +159,6 @@ class ComponentDecoupledMaskedTrustMemory(nn.Module):
                 merged_m = z_e.new_zeros((selected.numel(), self.memory_dim)).index_add(0, inverse, new_m[eligible]) / denom[:, None]
                 merged_u = z_e.new_zeros(selected.numel()).index_add(0, inverse, u[eligible]) / denom
                 merged_obs = z_e.new_zeros(selected.numel()).scatter_reduce(0, inverse, obs[eligible], reduce='amax')
-                # Functional updates retain gradients and avoid in-place bank
-                # mutations invalidating earlier reads in the same TBPTT chunk.
                 state[f'M_{q}'] = state[f'M_{q}'].index_copy(0, selected, merged_m)
                 state[f'U_{q}'] = state[f'U_{q}'].index_copy(0, selected, merged_u)
                 state[f'obs_{q}'] = state[f'obs_{q}'].index_copy(0, selected, merged_obs.detach())

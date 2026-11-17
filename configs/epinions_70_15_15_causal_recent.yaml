@@ -1,7 +1,6 @@
 inherits: configs/epinions_70_15_15_causal_refined.yaml
 device: cuda
 
-# Experimental variant: recent pre-query rating activity and train-only IDs.
 dataset:
   rating_temporal_activity: true
   rating_profile_dim: 0
