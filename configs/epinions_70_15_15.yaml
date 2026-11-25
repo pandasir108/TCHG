@@ -1,4 +1,5 @@
 seed: 42
+seeds: [42, 43, 44, 45, 46]
 device: auto
 
 dataset:

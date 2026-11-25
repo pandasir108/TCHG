@@ -58,7 +58,6 @@ def evaluation_protocol(trainer, fit_metrics, epochs=None):
         'schema_version': 1,
         'dataset': data_cfg.get('name'), 'dataset_file': str(trainer.dataset.path), 'dataset_sha256': fingerprint,
         'split': data_cfg.get('cat_table_split_label'), 'seed': int(trainer.cfg.get('seed', 42)),
-        'seeds_in_this_run': 1, 'aggregation': 'none; one run is not a multi-seed mean',
         'device': str(trainer.device),
         'user_regime_definitions': USER_REGIME_DEFINITIONS,
         'mask_fields': {'observed_user': 'observed_user_mask', 'unobserved_user': 'unobserved_user_mask',
