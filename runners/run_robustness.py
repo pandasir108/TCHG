@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import json
+import re
 from copy import deepcopy
 
 from tchg.data.event_dataset import EventGraphDataset
@@ -12,6 +14,38 @@ from tchg.training.metrics import user_regime_results
 from tchg.training.reporting import USER_REGIME_LABELS, evaluation_protocol, format_user_regime_table
 from tchg.utils.io import ensure_dir, load_config, resolve_path, save_json, write_csv
 from tchg.utils.seed import set_seed
+
+
+def resolve_checkpoint(cfg, checkpoint=None, seed=None):
+    configured_seed = int(cfg.get('seed', 42))
+    selected_seed = configured_seed if seed is None else int(seed)
+    if not 0 <= selected_seed < 2**32:
+        raise ValueError('Seed must be in [0, 2**32).')
+    if checkpoint is not None:
+        candidates = [resolve_path(checkpoint)]
+    else:
+        root = resolve_path(cfg['paths']['output_dir'])
+        candidates = [root / f'seed_{selected_seed}' / 'best.pt']
+        if selected_seed == configured_seed:
+            candidates.append(root / 'best.pt')
+    path = next((candidate for candidate in candidates if candidate.is_file()), None)
+    if path is None:
+        attempted = ', '.join(str(candidate) for candidate in candidates)
+        raise FileNotFoundError(f'No checkpoint found. Checked: {attempted}')
+    saved_config = path.parent / 'resolved_config.json'
+    recorded_seed = None
+    if saved_config.is_file():
+        recorded_seed = json.loads(saved_config.read_text()).get('seed')
+    if recorded_seed is None:
+        match = re.fullmatch(r'seed_(\d+)', path.parent.name)
+        if match:
+            recorded_seed = int(match.group(1))
+    if recorded_seed is not None:
+        recorded_seed = int(recorded_seed)
+        if (seed is not None or checkpoint is None) and recorded_seed != selected_seed:
+            raise ValueError(f'Checkpoint seed {recorded_seed} does not match requested seed {selected_seed}.')
+        selected_seed = recorded_seed
+    return path, selected_seed
 
 
 def evaluate_arrays(
@@ -31,19 +65,19 @@ def evaluate_arrays(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", default="configs/epinions_70_15_15.yaml")
+    parser.add_argument("--config", default="configs/epinions_70_15_15_memory_days.yaml")
     parser.add_argument("--checkpoint", default=None)
+    parser.add_argument("--seed", type=int, default=None, help="Training seed of the checkpoint")
     parser.add_argument("--device", default=None)
     parser.add_argument("--rates", nargs="+", type=float, default=None)
     parser.add_argument("--scenarios", nargs="+", default=None)
     parser.add_argument("--output", default=None)
     args = parser.parse_args()
     cfg = load_config(args.config)
-    set_seed(int(cfg.get("seed", 42)))
+    checkpoint, training_seed = resolve_checkpoint(cfg, args.checkpoint, args.seed)
     dataset = EventGraphDataset(prepare(cfg))
-    checkpoint = args.checkpoint or f"{cfg['paths']['output_dir']}/best.pt"
-    if not resolve_path(checkpoint).exists():
-        raise FileNotFoundError(f"Train the main model first: {checkpoint}")
+    cfg['seed'] = training_seed
+    set_seed(training_seed)
     clean_trainer = Trainer(cfg, dataset, device=args.device)
     clean_trainer.load_checkpoint(checkpoint)
     calibration = None
@@ -56,7 +90,7 @@ def main() -> None:
     experiment_cfg = cfg.get("robustness", {})
     rates = args.rates or experiment_cfg.get("rates", [0.1, 0.2, 0.3, 0.4, 0.5])
     scenarios = args.scenarios or experiment_cfg.get("scenarios", ["missing", "trust_oriented", "gnn_oriented"])
-    output = ensure_dir(args.output or f"{cfg['paths']['output_dir']}/robustness")
+    output = ensure_dir(args.output or checkpoint.parent / 'robustness')
     rows = []
     regime_rows = []
 
