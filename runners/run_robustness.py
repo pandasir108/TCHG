@@ -123,6 +123,10 @@ def main() -> None:
     protocol['robustness'] = dict(HISTORY_PROTOCOL) if attack_protocol == 'cat_style_history' else {
         'name': 'feature_corruption', 'stage': 'test_feature_corruption', 'retraining': False,
     }
+    if attack_protocol == 'cat_style_history':
+        protocol['robustness']['attack_seeds'] = {
+            'trust_oriented': training_seed + 17, 'gnn_oriented': training_seed + 97,
+        }
     save_json(protocol, output / 'evaluation_protocol.json')
     seed = int(cfg.get("seed", 42))
     for scenario in scenarios:
@@ -134,7 +138,8 @@ def main() -> None:
                              'selected_history_edges': 0, 'changed_history_edges': 0}
                 else:
                     metrics, audit = evaluate_history_attack(
-                        clean_trainer, dataset.arrays, scenario, float(rate), seed, threshold,
+                        clean_trainer, dataset.arrays, scenario, float(rate),
+                        seed + {'trust_oriented': 17, 'gnn_oriented': 97}[scenario], threshold,
                     )
                 record(scenario, float(rate), metrics, audit)
                 continue

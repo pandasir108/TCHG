@@ -36,6 +36,7 @@ def perturb_history(arrays, scenario, rate, seed):
         **HISTORY_PROTOCOL,
         'scenario': scenario,
         'requested_ratio': float(rate),
+        'attack_seed': int(seed),
         'test_positive_edges': test_positive,
         'history_positive_edges': len(candidates),
         'selected_history_edges': len(chosen),
