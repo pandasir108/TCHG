@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 
 
-def causal_structural_features(arrays, cache_path=None):
+def causal_structural_features(arrays, cache_path=None, require_separated_splits=True):
     src, dst, times, split = (arrays[k] for k in ('src', 'dst', 'timestamp', 'split'))
     n = len(src)
     visible = arrays.get('history_visible_mask', np.ones(n))
@@ -25,7 +25,7 @@ def causal_structural_features(arrays, cache_path=None):
                 return saved['features'].copy()
     parts = [np.flatnonzero(split == k) for k in (0, 1, 2)]
     for left, right in zip(parts, parts[1:]):
-        if len(left) and len(right) and times[left].max() >= times[right].min():
+        if require_separated_splits and len(left) and len(right) and times[left].max() >= times[right].min():
             raise ValueError('Structural evidence requires strictly separated chronological splits')
     outgoing = [set() for _ in range(int(arrays['num_nodes'][0]))]
     incoming = [set() for _ in outgoing]

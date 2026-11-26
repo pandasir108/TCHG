@@ -10,20 +10,24 @@ def _copy(arrays: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
 
 def _choose_events(arrays: dict[str, np.ndarray], ratio: float, seed: int) -> np.ndarray:
 
+    if not np.isfinite(ratio) or not 0. <= ratio <= 1.:
+        raise ValueError('Attack rate must be finite and in [0, 1].')
     rng = np.random.default_rng(seed)
     n = arrays["src"].shape[0]
-    count = max(1, int(n * ratio))
+    count = max(1, int(n * ratio)) if n and ratio > 0. else 0
     return rng.choice(np.arange(n), size=count, replace=False)
 
 
 def _choose_event_prefix(arrays: dict[str, np.ndarray], ratio: float, seed: int) -> np.ndarray:
 
+    if not np.isfinite(ratio) or not 0. <= ratio <= 1.:
+        raise ValueError('Attack rate must be finite and in [0, 1].')
     candidates = np.arange(arrays["src"].shape[0])
     if "split" in arrays:
         test = np.where(arrays["split"].astype(np.int64) == 2)[0]
         if len(test):
             candidates = test
-    count = max(1, int(len(candidates) * ratio))
+    count = max(1, int(len(candidates) * ratio)) if len(candidates) and ratio > 0. else 0
     rng = np.random.default_rng(seed)
     return rng.permutation(candidates)[:count]
 
@@ -73,7 +77,7 @@ def stale_trust_replay(arrays: dict[str, np.ndarray], ratio: float, seed: int) -
     return out
 
 
-def trust_oriented_poison(arrays: dict[str, np.ndarray], ratio: float, seed: int) -> dict[str, np.ndarray]:
+def trust_feature_corruption(arrays: dict[str, np.ndarray], ratio: float, seed: int) -> dict[str, np.ndarray]:
 
     out = _copy(arrays)
     idx = _choose_event_prefix(out, ratio, seed)
@@ -85,7 +89,7 @@ def trust_oriented_poison(arrays: dict[str, np.ndarray], ratio: float, seed: int
     return out
 
 
-def gnn_oriented_rewire(arrays: dict[str, np.ndarray], ratio: float, seed: int) -> dict[str, np.ndarray]:
+def gnn_feature_corruption(arrays: dict[str, np.ndarray], ratio: float, seed: int) -> dict[str, np.ndarray]:
 
     out = _copy(arrays)
     idx = _choose_event_prefix(out, ratio, seed)
@@ -108,6 +112,6 @@ ATTACKS = {
     "bad_mouthing": bad_mouthing,
     "collusion": collusion,
     "stale_trust_replay": stale_trust_replay,
-    "trust_oriented": trust_oriented_poison,
-    "gnn_oriented": gnn_oriented_rewire,
+    "trust_feature_corruption": trust_feature_corruption,
+    "gnn_feature_corruption": gnn_feature_corruption,
 }

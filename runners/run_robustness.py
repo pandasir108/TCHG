@@ -7,6 +7,7 @@ from copy import deepcopy
 
 from tchg.data.event_dataset import EventGraphDataset
 from tchg.experiments.attack_study import ATTACKS
+from tchg.experiments.cat_style_history import HISTORY_PROTOCOL, HISTORY_SCENARIOS, evaluate_history_attack
 from tchg.experiments.missing_study import apply_missing_rate
 from tchg.runner import prepare
 from tchg.training.trainer import Trainer
@@ -71,6 +72,7 @@ def main() -> None:
     parser.add_argument("--device", default=None)
     parser.add_argument("--rates", nargs="+", type=float, default=None)
     parser.add_argument("--scenarios", nargs="+", default=None)
+    parser.add_argument("--attack-protocol", choices=["cat_style_history", "feature_corruption"], default=None)
     parser.add_argument("--output", default=None)
     args = parser.parse_args()
     cfg = load_config(args.config)
@@ -88,18 +90,25 @@ def main() -> None:
     if bool(cfg["training"].get("auto_tune_threshold", True)):
         threshold = float(clean_trainer.tune_threshold("val")["best_threshold"])
     experiment_cfg = cfg.get("robustness", {})
+    attack_protocol = args.attack_protocol or experiment_cfg.get('attack_protocol', 'cat_style_history')
+    if attack_protocol not in {'cat_style_history', 'feature_corruption'}:
+        raise ValueError(f'Unknown attack protocol: {attack_protocol}')
     rates = args.rates or experiment_cfg.get("rates", [0.1, 0.2, 0.3, 0.4, 0.5])
     scenarios = args.scenarios or experiment_cfg.get("scenarios", ["missing", "trust_oriented", "gnn_oriented"])
-    output = ensure_dir(args.output or checkpoint.parent / 'robustness')
+    output = ensure_dir(args.output or checkpoint.parent / 'robustness' / attack_protocol)
     rows = []
     regime_rows = []
 
-    def record(scenario, rate, metrics):
-        rows.append({'scenario': scenario, 'rate': rate, **metrics})
+    def record(scenario, rate, metrics, audit=None):
+        row_protocol = attack_protocol if scenario in HISTORY_SCENARIOS or scenario == 'clean' else (
+            'event_missingness' if scenario == 'missing' else 'feature_corruption')
+        rows.append({'scenario': scenario, 'rate': rate, 'attack_protocol': row_protocol, **metrics})
         grouped = user_regime_results(metrics)
         for regime, values in grouped.items():
-            regime_rows.append({'scenario': scenario, 'rate': rate, 'user_regime': regime,
+            regime_rows.append({'scenario': scenario, 'rate': rate, 'attack_protocol': row_protocol, 'user_regime': regime,
                                 'task': USER_REGIME_LABELS[regime], **values})
+        if audit is not None:
+            save_json(audit, output / scenario / f'rate_{float(rate):g}' / 'attack_protocol.json')
         write_csv(rows, output / 'summary.csv')
         write_csv(regime_rows, output / 'summary_user_regimes.csv')
         print(f'{scenario}, rate={rate}')
@@ -111,12 +120,30 @@ def main() -> None:
     protocol['selection'] = {'source_checkpoint': str(checkpoint), 'selected_during_this_run': False,
                              'shared_model_for_both_regimes': True, 'test_used_for_selection': False}
     protocol['sample_count_reference'] = 'Clean data; user regimes stay fixed across event perturbations.'
+    protocol['robustness'] = dict(HISTORY_PROTOCOL) if attack_protocol == 'cat_style_history' else {
+        'name': 'feature_corruption', 'stage': 'test_feature_corruption', 'retraining': False,
+    }
     save_json(protocol, output / 'evaluation_protocol.json')
     seed = int(cfg.get("seed", 42))
     for scenario in scenarios:
         for rate in rates:
+            if scenario in HISTORY_SCENARIOS and attack_protocol == 'cat_style_history':
+                if float(rate) == 0.:
+                    metrics = clean_metrics
+                    audit = {**HISTORY_PROTOCOL, 'scenario': scenario, 'requested_ratio': 0.,
+                             'selected_history_edges': 0, 'changed_history_edges': 0}
+                else:
+                    metrics, audit = evaluate_history_attack(
+                        clean_trainer, dataset.arrays, scenario, float(rate), seed, threshold,
+                    )
+                record(scenario, float(rate), metrics, audit)
+                continue
             if scenario == "missing":
                 arrays = apply_missing_rate(dataset.arrays, float(rate), seed)
+            elif scenario in HISTORY_SCENARIOS:
+                key = {'trust_oriented': 'trust_feature_corruption',
+                       'gnn_oriented': 'gnn_feature_corruption'}[scenario]
+                arrays = ATTACKS[key](dataset.arrays, float(rate), seed)
             elif scenario in ATTACKS:
                 arrays = ATTACKS[scenario](dataset.arrays, float(rate), seed)
             else:
