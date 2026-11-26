@@ -6,10 +6,11 @@ import numpy as np
 import pandas as pd
 
 from tchg.data.feature_builder import build_event_features_cat_rolling
+from tchg.experiments.history_constraints import HISTORY_PROTOCOL, perturb_history_preserving_coverage
 
 
 HISTORY_SCENARIOS = {"trust_oriented", "gnn_oriented"}
-HISTORY_PROTOCOL = {
+LEGACY_HISTORY_PROTOCOL = {
     "name": "cat_style_history",
     "stage": "inference_history_perturbation",
     "scope": "train_val_positive_history",
@@ -21,7 +22,21 @@ HISTORY_PROTOCOL = {
 }
 
 
-def perturb_history(arrays, scenario, rate, seed):
+HISTORY_PROTOCOLS = {
+    'fixed_history_coverage': HISTORY_PROTOCOL,
+    'cat_style_history': LEGACY_HISTORY_PROTOCOL,
+}
+
+
+def perturb_history(arrays, scenario, rate, seed, protocol='fixed_history_coverage'):
+    if protocol == 'fixed_history_coverage':
+        return perturb_history_preserving_coverage(arrays, scenario, rate, seed)
+    if protocol == 'cat_style_history':
+        return _legacy_perturb_history(arrays, scenario, rate, seed)
+    raise ValueError(f'Unknown history attack protocol: {protocol}')
+
+
+def _legacy_perturb_history(arrays, scenario, rate, seed):
     if scenario not in HISTORY_SCENARIOS:
         raise ValueError(f"Unknown history attack: {scenario}")
     if not np.isfinite(rate) or not 0. <= rate <= 1.:
@@ -33,7 +48,7 @@ def perturb_history(arrays, scenario, rate, seed):
     count = max(1, int(round(test_positive * rate))) if rate > 0. and test_positive else 0
     chosen = np.random.default_rng(seed).permutation(candidates)[:count]
     audit = {
-        **HISTORY_PROTOCOL,
+        **LEGACY_HISTORY_PROTOCOL,
         'scenario': scenario,
         'requested_ratio': float(rate),
         'attack_seed': int(seed),
@@ -137,18 +152,18 @@ def _verified_node_mapping(arrays, data_cfg):
     return mapping
 
 
-def history_attack_batches(trainer, clean_arrays, scenario, rate, seed):
+def history_attack_batches(trainer, clean_arrays, scenario, rate, seed, protocol='fixed_history_coverage'):
     data_cfg = trainer.cfg['dataset']
     if trainer.static_graph or not str(data_cfg.get('name', '')).startswith('epinions'):
         raise ValueError("The CAT-style history protocol currently supports temporal Epinions only.")
-    attacked, audit = perturb_history(clean_arrays, scenario, rate, seed)
+    attacked, audit = perturb_history(clean_arrays, scenario, rate, seed, protocol)
     if not audit['selected_history_edges']:
         return trainer.batches, audit
     arrays = rebuild_history_features(clean_arrays, attacked, data_cfg, seed)
     if data_cfg.get('causal_structure_features', False):
         from tchg.data.structural_features import causal_structural_features
 
-        features = causal_structural_features(arrays, require_separated_splits=False)
+        features = causal_structural_features(arrays, require_separated_splits=protocol != 'cat_style_history')
         arrays['behavior_features'] = np.concatenate([arrays['behavior_features'], features[:, :2]], axis=1)
         arrays['context_features'] = np.concatenate([arrays['context_features'], features[:, 2:]], axis=1)
     if data_cfg.get('causal_rating_features', False):
@@ -181,8 +196,8 @@ def history_attack_batches(trainer, clean_arrays, scenario, rate, seed):
     return batches, audit
 
 
-def evaluate_history_attack(trainer, clean_arrays, scenario, rate, seed, threshold):
-    batches, audit = history_attack_batches(trainer, clean_arrays, scenario, rate, seed)
+def evaluate_history_attack(trainer, clean_arrays, scenario, rate, seed, threshold, protocol='fixed_history_coverage'):
+    batches, audit = history_attack_batches(trainer, clean_arrays, scenario, rate, seed, protocol)
     original = trainer.batches
     try:
         trainer.batches = batches

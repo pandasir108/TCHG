@@ -79,6 +79,6 @@ paths:
   output_dir: outputs/epinions_70_15_15
 
 robustness:
-  attack_protocol: cat_style_history
+  attack_protocol: fixed_history_coverage
   scenarios: [missing, trust_oriented, gnn_oriented]
   rates: [0.05, 0.10, 0.15, 0.20]

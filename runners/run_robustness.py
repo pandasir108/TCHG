@@ -7,7 +7,7 @@ from copy import deepcopy
 
 from tchg.data.event_dataset import EventGraphDataset
 from tchg.experiments.attack_study import ATTACKS
-from tchg.experiments.cat_style_history import HISTORY_PROTOCOL, HISTORY_SCENARIOS, evaluate_history_attack
+from tchg.experiments.cat_style_history import HISTORY_PROTOCOLS, HISTORY_SCENARIOS, evaluate_history_attack
 from tchg.experiments.missing_study import apply_missing_rate
 from tchg.runner import prepare
 from tchg.training.trainer import Trainer
@@ -72,7 +72,7 @@ def main() -> None:
     parser.add_argument("--device", default=None)
     parser.add_argument("--rates", nargs="+", type=float, default=None)
     parser.add_argument("--scenarios", nargs="+", default=None)
-    parser.add_argument("--attack-protocol", choices=["cat_style_history", "feature_corruption"], default=None)
+    parser.add_argument("--attack-protocol", choices=[*HISTORY_PROTOCOLS, "feature_corruption"], default=None)
     parser.add_argument("--output", default=None)
     args = parser.parse_args()
     cfg = load_config(args.config)
@@ -90,8 +90,8 @@ def main() -> None:
     if bool(cfg["training"].get("auto_tune_threshold", True)):
         threshold = float(clean_trainer.tune_threshold("val")["best_threshold"])
     experiment_cfg = cfg.get("robustness", {})
-    attack_protocol = args.attack_protocol or experiment_cfg.get('attack_protocol', 'cat_style_history')
-    if attack_protocol not in {'cat_style_history', 'feature_corruption'}:
+    attack_protocol = args.attack_protocol or experiment_cfg.get('attack_protocol', 'fixed_history_coverage')
+    if attack_protocol not in {*HISTORY_PROTOCOLS, 'feature_corruption'}:
         raise ValueError(f'Unknown attack protocol: {attack_protocol}')
     rates = args.rates or experiment_cfg.get("rates", [0.1, 0.2, 0.3, 0.4, 0.5])
     scenarios = args.scenarios or experiment_cfg.get("scenarios", ["missing", "trust_oriented", "gnn_oriented"])
@@ -120,10 +120,10 @@ def main() -> None:
     protocol['selection'] = {'source_checkpoint': str(checkpoint), 'selected_during_this_run': False,
                              'shared_model_for_both_regimes': True, 'test_used_for_selection': False}
     protocol['sample_count_reference'] = 'Clean data; user regimes stay fixed across event perturbations.'
-    protocol['robustness'] = dict(HISTORY_PROTOCOL) if attack_protocol == 'cat_style_history' else {
+    protocol['robustness'] = dict(HISTORY_PROTOCOLS[attack_protocol]) if attack_protocol in HISTORY_PROTOCOLS else {
         'name': 'feature_corruption', 'stage': 'test_feature_corruption', 'retraining': False,
     }
-    if attack_protocol == 'cat_style_history':
+    if attack_protocol in HISTORY_PROTOCOLS:
         protocol['robustness']['attack_seeds'] = {
             'trust_oriented': training_seed + 17, 'gnn_oriented': training_seed + 97,
         }
@@ -131,15 +131,16 @@ def main() -> None:
     seed = int(cfg.get("seed", 42))
     for scenario in scenarios:
         for rate in rates:
-            if scenario in HISTORY_SCENARIOS and attack_protocol == 'cat_style_history':
+            if scenario in HISTORY_SCENARIOS and attack_protocol in HISTORY_PROTOCOLS:
                 if float(rate) == 0.:
                     metrics = clean_metrics
-                    audit = {**HISTORY_PROTOCOL, 'scenario': scenario, 'requested_ratio': 0.,
+                    audit = {**HISTORY_PROTOCOLS[attack_protocol], 'scenario': scenario, 'requested_ratio': 0.,
                              'selected_history_edges': 0, 'changed_history_edges': 0}
                 else:
                     metrics, audit = evaluate_history_attack(
                         clean_trainer, dataset.arrays, scenario, float(rate),
                         seed + {'trust_oriented': 17, 'gnn_oriented': 97}[scenario], threshold,
+                        attack_protocol,
                     )
                 record(scenario, float(rate), metrics, audit)
                 continue

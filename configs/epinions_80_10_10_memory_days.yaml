@@ -1,0 +1,15 @@
+inherits: configs/epinions_70_15_15_memory_days.yaml
+
+dataset:
+  name: epinions_full_cat_rolling_80_10_10
+  processed_file: data/processed/epinions_full_cat_rolling_80_10_10/events.npz
+  val_ratio: 0.10
+  test_ratio: 0.10
+  val_time_ratio: 0.80
+  test_time_ratio: 0.90
+  cat_table_split_label: 80%-10%-10%
+  structural_feature_cache: outputs/cache/epinions_80_10_10_causal_structure_v1.npz
+  rating_feature_cache: outputs/cache/epinions_80_10_10_ratings_recent_v1.npz
+
+paths:
+  output_dir: outputs/epinions_80_10_10_memory_days
