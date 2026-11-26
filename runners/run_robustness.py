@@ -65,7 +65,7 @@ def evaluate_arrays(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description='Evaluate fixed-weight history perturbations. Training-time poisoning uses runners/run_poisoning.py.')
     parser.add_argument("--config", default="configs/epinions_70_15_15_memory_days.yaml")
     parser.add_argument("--checkpoint", default=None)
     parser.add_argument("--seed", type=int, default=None, help="Training seed of the checkpoint")
